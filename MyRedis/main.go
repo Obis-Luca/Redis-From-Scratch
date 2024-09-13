@@ -7,19 +7,35 @@ import (
 )
 
 func main() {
-	l, err := net.Listen("tcp", ":6379")
+	fmt.Println("Listening on port 6379")
 
+	//Create a new server
+	l, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
+	//Create AOF file for persistance
+	aof, err := newAof("database.aof")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer aof.Close()
+
+	err = aof.Replay()
+	if err != nil {
+		fmt.Println("Error replaying AOF:", err)
+		return
+	}
+
+	//Listen for Connections
 	conn, err := l.Accept()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-
 	defer conn.Close()
 
 	for {
@@ -52,6 +68,11 @@ func main() {
 			writer.Write(Value{typ: "string", str: ""})
 			continue
 		}
+
+		if command == "SET" || command == "HSET" {
+			aof.Write(value)
+		}
+
 		result := handler(args)
 		writer.Write(result)
 
