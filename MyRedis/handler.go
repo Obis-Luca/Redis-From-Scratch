@@ -11,6 +11,7 @@ var Handlers = map[string]func([]Value) Value{
 	"HSET":    hset,
 	"HGET":    hget,
 	"HGETALL": hgetall,
+	"DEL":     del,
 }
 
 var SETs = map[string]string{}
@@ -117,4 +118,25 @@ func hgetall(args []Value) Value {
 	}
 
 	return Value{typ: "array", array: array}
+}
+
+func del(args []Value) Value {
+	if len(args) < 1 {
+		return Value{typ: "error", str: "ERR wrong number of arguments for 'del' command"}
+	}
+
+	count := 0
+	SETsMu.Lock()
+	defer SETsMu.Unlock()
+
+	for _, arg := range args {
+		key := arg.bulk
+		if _, ok := SETs[key]; ok {
+			delete(SETs, key)
+			count++
+		}
+	}
+
+	// return Value{typ: "string", str: fmt.Sprintf("%d", count)}
+	return Value{typ: "integer", num: count}
 }
